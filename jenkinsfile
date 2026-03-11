@@ -43,14 +43,14 @@ pipeline {
         }
 
         stage("Install Deps & OWASP Scan") {
-            steps {
-                sh "npm install"
-                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                    dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
-                }
-                dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            }
+    steps {
+        sh "npm install"
+        catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+            dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit --noupdate', odcInstallation: 'DP-Check'
         }
+        dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+    }
+}
 
         stage("Build & Push Docker Image") {
             steps {
