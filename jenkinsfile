@@ -80,7 +80,7 @@ pipeline {
                                 git config user.name "akhilkumar0024"
                                 git add Kubernetes/deployment.yaml
                                 git commit -m 'Update image to ${IMAGE_TAG}'
-                                git push origin master
+                                git push origin main
                             """
                         }
                     }
