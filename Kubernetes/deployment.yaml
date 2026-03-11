@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zomato
+  labels:
+    app: zomato
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zomato
+  template:
+    metadata:
+      labels:
+        app: zomato
+    spec:
+      containers:
+      - name: zomato
+        # Jenkins will update this version number automatically
+        image: akhilkumar119/zomato:9
+        ports:
+        - containerPort: 3000
+
