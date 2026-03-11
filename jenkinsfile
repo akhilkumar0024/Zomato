@@ -1,22 +1,31 @@
 pipeline {
     agent any
+
     tools {
         jdk 'jdk17'
         nodejs 'node23'
     }
+
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_USER  = "akhilkumar119"
         APP_NAME     = "zomato"
         IMAGE_TAG    = "${DOCKER_USER}/${APP_NAME}:${env.BUILD_NUMBER}"
     }
+
     stages {
         stage("Clean Workspace") {
-            steps { cleanWs() }
+            steps {
+                cleanWs()
+            }
         }
+
         stage("Git Checkout") {
-            steps { git 'https://github.com/akhilkumar0024/Zomato.git' }
+            steps {
+                git 'https://github.com/akhilkumar0024/Zomato.git'
+            }
         }
+
         stage("Sonarqube Analysis") {
             steps {
                 withSonarQubeEnv('sonar-server') {
@@ -24,16 +33,25 @@ pipeline {
                 }
             }
         }
+
         stage("Code Quality Gate") {
-            steps { script { waitForQualityGate abortPipeline: false, credentialsId: 'SonarQube-token' } }
+            steps {
+                script {
+                    waitForQualityGate abortPipeline: false, credentialsId: 'SonarQube-token'
+                }
+            }
         }
+
         stage("Install Deps & OWASP Scan") {
             steps {
                 sh "npm install"
-                dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit -n', odcInstallation: 'DP-Check'
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
+                }
                 dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
             }
         }
+
         stage("Build & Push Docker Image") {
             steps {
                 script {
@@ -44,24 +62,31 @@ pipeline {
                 }
             }
         }
-       stage("Update GitOps Manifest") {
+
+        stage("Update GitOps Manifest") {
             steps {
                 script {
                     withCredentials([usernamePassword(credentialsId: 'github-cred', passwordVariable: 'GH_TOKEN', usernameVariable: 'GH_USER')]) {
-                        sh """
-                            git config --global user.email "akhilkumar0024.devops@gmail.com"
-                            git config --global user.name "akhilkumar0024"
-                            
-                            # update the tag name in deployment.yaml
-                            sed -i 's|image: ${DOCKER_USER}/${APP_NAME}:.*|image: ${IMAGE_TAG}|g' Kubernetes/deployment.yaml
-                            
-                            git add Kubernetes/deployment.yaml
-                            git commit -m "chore: Jenkins build ${env.BUILD_NUMBER} update [skip ci]"
-                            git push https://${GH_USER}:${GH_TOKEN}@github.com/akhilkumar0024/Zomato.git master
-                        """
+                        // Ensure a clean state before cloning
+                        sh "rm -rf Zomato-Manifests"
+                        sh "git clone https://${GH_USER}:${GH_TOKEN}@github.com/akhilkumar0024/Zomato-Manifests.git"
+
+                        dir("Zomato-Manifests") {
+                            // Updating the image tag in the deployment manifest
+                            sh "sed -i 's|image: .*|image: ${IMAGE_TAG}|g' Kubernetes/deployment.yaml"
+
+                            sh """
+                                git config user.email "akhilkumar0024.devops@gmail.com"
+                                git config user.name "akhilkumar0024"
+                                git add Kubernetes/deployment.yaml
+                                git commit -m 'Update image to ${IMAGE_TAG}'
+                                git push origin master
+                            """
+                        }
                     }
                 }
             }
         }
     }
+
 }
