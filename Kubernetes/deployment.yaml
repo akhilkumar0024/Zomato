@@ -17,7 +17,7 @@ spec:
       containers:
       - name: zomato
         # Jenkins will update this version number automatically
-        image: akhilkumar119/zomato:6
+        image: akhilkumar119/zomato:7
         ports:
         - containerPort: 3000
 
